@@ -5,20 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pro Whiteboard & Sketchpad</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         body { touch-action: none; background-color: #f3f4f6; }
         #canvas { cursor: crosshair; background: white; touch-action: none; }
         .tab-content { display: none; }
         .tab-content.active { display: flex; }
+        .thumbnail { border: 2px solid #e5e7eb; cursor: pointer; transition: 0.2s; }
+        .thumbnail:hover { border-color: #4f46e5; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
     <header class="bg-indigo-700 text-white p-4 shadow-lg flex justify-between items-center">
-        <h1 class="text-xl font-bold">Whiteboard by Ved Vyas (developerved2312)</h1>
+        <h1 class="text-xl font-bold">Whiteboard by Ved Vyas <a href="https://github.com/developerved2312"> (GitHub: developerved2312)</a></h1>
         <div class="flex gap-2">
             <button onclick="switchTab('whiteboard')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Draw</button>
             <button onclick="switchTab('editor')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">JS Editor</button>
+            <button onclick="switchTab('gallery')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Slide Overview</button>
             <button onclick="switchTab('guide')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Guide</button>
         </div>
     </header>
@@ -27,13 +31,21 @@
         <div class="bg-white p-2 border-b flex flex-wrap gap-4 items-center">
             <input type="color" id="colorPicker" value="#4f46e5" class="w-10 h-10 border-0 cursor-pointer">
             <input type="range" id="sizeRange" min="1" max="50" value="5" class="w-24">
-            <input type="file" id="imgLoader" accept="image/*" class="text-sm w-48">
+            <input type="file" id="imgLoader" accept="image/*" class="text-sm w-32">
             <label class="text-xs">Img Size:</label>
             <input type="range" id="imgScale" min="0.1" max="2" step="0.1" value="1" class="w-24">
-            <button onclick="clearCanvas()" class="bg-red-500 text-white px-3 py-1 rounded">Clear</button>
+            <button onclick="clearCanvas()" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Clear</button>
+            <button onclick="addSlide()" class="bg-green-600 text-white px-3 py-1 rounded text-sm">+ Add Slide</button>
+            <button onclick="downloadPDF()" class="bg-indigo-800 text-white px-3 py-1 rounded text-sm">Download PDF</button>
+            <span id="slideIndicator" class="text-xs font-bold px-2">P1</span>
         </div>
         <canvas id="canvas" class="flex-1 w-full h-full"></canvas>
     </main>
+
+    <section id="gallery" class="tab-content flex-col p-4 bg-gray-100 flex-1 overflow-auto">
+        <h2 class="text-xl font-bold mb-4">Slide Overview</h2>
+        <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+    </section>
 
     <section id="editor" class="tab-content flex-col p-4 bg-gray-100 flex-1">
         <select id="snippetSelector" onchange="insertSnippet()" class="mb-2 p-2 rounded border">
@@ -41,10 +53,9 @@
             <option value="ctx.fillStyle = 'blue'; ctx.fillRect(50, 50, 100, 100);">Draw Blue Square</option>
             <option value="ctx.beginPath(); ctx.arc(200, 200, 50, 0, Math.PI * 2); ctx.fillStyle = 'red'; ctx.fill();">Draw Red Circle</option>
             <option value="ctx.font = '30px Arial'; ctx.fillStyle = 'black'; ctx.fillText('Hello World', 50, 100);">Write Text</option>
-            <option value="ctx.strokeStyle = 'green'; ctx.lineWidth = 5; ctx.strokeRect(100, 100, 150, 80);">Draw Green Border</option>
         </select>
-        <textarea id="codeEditor" class="w-full h-48 p-4 font-mono text-sm border rounded mb-2" placeholder="// Type JS or select a snippet above..."></textarea>
-        <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold">Run Code on Canvas</button>
+        <textarea id="codeEditor" class="w-full h-48 p-4 font-mono text-sm border rounded mb-2" placeholder="// Type JS here..."></textarea>
+        <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold">Run Code</button>
     </section>
 
     <section id="guide" class="tab-content p-6 overflow-auto bg-gray-50 flex-1 flex-col">
@@ -74,75 +85,95 @@
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const colorPicker = document.getElementById('colorPicker');
-        const sizeRange = document.getElementById('sizeRange');
-        const imgScale = document.getElementById('imgScale');
+        const slides = [null]; 
+        let currentSlideIndex = 0;
         let currentImg = null;
         
         function resize() {
+            const temp = canvas.toDataURL();
             canvas.width = canvas.parentElement.offsetWidth;
             canvas.height = canvas.parentElement.offsetHeight;
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = temp;
         }
         window.onresize = resize;
         resize();
 
-        // Re-draws the current image at the new scale
-        function redrawImage() {
-            if (currentImg) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(currentImg, 0, 0, currentImg.width * imgScale.value, currentImg.height * imgScale.value);
+        function saveCurrentSlide() { slides[currentSlideIndex] = canvas.toDataURL(); }
+        function loadSlide(index) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (slides[index]) {
+                const img = new Image();
+                img.onload = () => ctx.drawImage(img, 0, 0);
+                img.src = slides[index];
             }
+            currentSlideIndex = index;
+            document.getElementById('slideIndicator').innerText = `P${index + 1}`;
         }
+        function addSlide() { saveCurrentSlide(); slides.push(null); loadSlide(slides.length - 1); }
 
-        imgScale.addEventListener('input', redrawImage);
-
-        function insertSnippet() {
-            const selector = document.getElementById('snippetSelector');
-            const editor = document.getElementById('codeEditor');
-            if (selector.value) {
-                editor.value += (editor.value ? '\n' : '') + selector.value;
-            }
+        function renderGallery() {
+            saveCurrentSlide();
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+            slides.forEach((data, i) => {
+                const div = document.createElement('div');
+                div.className = 'thumbnail p-1 bg-white';
+                div.innerHTML = `<img src="${data || ''}" class="w-full h-auto" onerror="this.style.display='none'">`;
+                div.onclick = () => { loadSlide(i); switchTab('whiteboard'); };
+                grid.appendChild(div);
+            });
         }
 
         let painting = false;
         canvas.onmousedown = () => painting = true;
         canvas.onmouseup = () => { painting = false; ctx.beginPath(); };
-        canvas.onmousemove = draw;
-
-        function draw(e) {
+        canvas.onmousemove = (e) => {
             if (!painting) return;
-            ctx.lineWidth = sizeRange.value;
+            ctx.lineWidth = document.getElementById('sizeRange').value;
+            ctx.strokeStyle = document.getElementById('colorPicker').value;
             ctx.lineCap = 'round';
-            ctx.strokeStyle = colorPicker.value;
             const rect = canvas.getBoundingClientRect();
             ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-        }
+        };
 
+        function redrawImage() {
+            if (currentImg) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(currentImg, 0, 0, currentImg.width * document.getElementById('imgScale').value, currentImg.height * document.getElementById('imgScale').value);
+            }
+        }
+        document.getElementById('imgScale').addEventListener('input', redrawImage);
         document.getElementById('imgLoader').onchange = (e) => {
             const reader = new FileReader();
             reader.onload = (event) => {
                 currentImg = new Image();
-                currentImg.onload = () => {
-                    redrawImage();
-                }
+                currentImg.onload = redrawImage;
                 currentImg.src = event.target.result;
             }
             reader.readAsDataURL(e.target.files[0]);
         };
 
-        function runCode() {
-            const code = document.getElementById('codeEditor').value;
-            try { eval(code); } catch(err) { alert("Code Error: " + err.message); }
+        function downloadPDF() {
+            saveCurrentSlide();
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'px', [canvas.width, canvas.height]);
+            slides.forEach((data, i) => {
+                if (i > 0) doc.addPage([canvas.width, canvas.height], 'l');
+                if (data) doc.addImage(data, 'PNG', 0, 0, canvas.width, canvas.height);
+            });
+            doc.save('presentation.pdf');
         }
 
-        function clearCanvas() { 
-            ctx.clearRect(0, 0, canvas.width, canvas.height); 
-            currentImg = null;
-        }
+        function runCode() { try { eval(document.getElementById('codeEditor').value); } catch(err) { alert("Error: " + err.message); } }
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); currentImg = null; slides[currentSlideIndex] = null; }
+        function insertSnippet() { document.getElementById('codeEditor').value += document.getElementById('snippetSelector').value + '\n'; }
         function switchTab(id) {
+            if(id === 'gallery') renderGallery();
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
