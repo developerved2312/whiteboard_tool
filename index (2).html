@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Whiteboard & Sketchpad</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { touch-action: none; background-color: #f3f4f6; }
+        #canvas { cursor: crosshair; background: white; touch-action: none; }
+        .tab-content { display: none; }
+        .tab-content.active { display: flex; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-indigo-700 text-white p-4 shadow-lg flex justify-between items-center">
+        <h1 class="text-xl font-bold">Whiteboard JS</h1>
+        <div class="flex gap-2">
+            <button onclick="switchTab('whiteboard')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Draw</button>
+            <button onclick="switchTab('editor')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">JS Editor</button>
+            <button onclick="switchTab('guide')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Guide</button>
+        </div>
+    </header>
+
+    <main id="whiteboard" class="tab-content active flex-1 relative flex-col">
+        <div class="bg-white p-2 border-b flex flex-wrap gap-4 items-center">
+            <input type="color" id="colorPicker" value="#4f46e5" class="w-10 h-10 border-0 cursor-pointer">
+            <input type="range" id="sizeRange" min="1" max="50" value="5" class="w-24">
+            <input type="file" id="imgLoader" accept="image/*" class="text-sm w-48">
+            <label class="text-xs">Img Size:</label>
+            <input type="range" id="imgScale" min="0.1" max="2" step="0.1" value="1" class="w-24">
+            <button onclick="clearCanvas()" class="bg-red-500 text-white px-3 py-1 rounded">Clear</button>
+        </div>
+        <canvas id="canvas" class="flex-1 w-full h-full"></canvas>
+    </main>
+
+    <section id="editor" class="tab-content flex-col p-4 bg-gray-100 flex-1">
+        <select id="snippetSelector" onchange="insertSnippet()" class="mb-2 p-2 rounded border">
+            <option value="">Select a snippet...</option>
+            <option value="ctx.fillStyle = 'blue'; ctx.fillRect(50, 50, 100, 100);">Draw Blue Square</option>
+            <option value="ctx.beginPath(); ctx.arc(200, 200, 50, 0, Math.PI * 2); ctx.fillStyle = 'red'; ctx.fill();">Draw Red Circle</option>
+            <option value="ctx.font = '30px Arial'; ctx.fillStyle = 'black'; ctx.fillText('Hello World', 50, 100);">Write Text</option>
+            <option value="ctx.strokeStyle = 'green'; ctx.lineWidth = 5; ctx.strokeRect(100, 100, 150, 80);">Draw Green Border</option>
+        </select>
+        <textarea id="codeEditor" class="w-full h-48 p-4 font-mono text-sm border rounded mb-2" placeholder="// Type JS or select a snippet above..."></textarea>
+        <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold">Run Code on Canvas</button>
+    </section>
+
+    <section id="guide" class="tab-content p-6 overflow-auto bg-gray-50 flex-1 flex-col">
+        <h2 class="text-2xl font-bold mb-4 text-gray-800">Processing.js Syntax Guide</h2>
+        <div class="bg-gray-800 text-green-400 p-6 rounded shadow-inner font-mono text-sm leading-relaxed overflow-x-auto">
+            <p>// Shapes</p>
+            <p>rect(x, y, w, h);</p>
+            <p>ellipse(x, y, w, h);</p>
+            <p>line(x1, y1, x2, y2);</p>
+            <p>triangle(x1, y1, x2, y2, x3, y3);</p>
+            <br>
+            <p>// Text</p>
+            <p>text("string", x, y, width, height);</p>
+            <br>
+            <p>// Styles</p>
+            <p>fill(r, g, b);</p>
+            <p>stroke(r, g, b);</p>
+            <p>strokeWeight(size);</p>
+            <br>
+            <p>// Animation/Loop</p>
+            <p>function draw() {</p>
+            <p>&nbsp;&nbsp;&nbsp;// Runs every frame</p>
+            <p>}</p>
+        </div>
+    </section>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const sizeRange = document.getElementById('sizeRange');
+        const imgScale = document.getElementById('imgScale');
+        let currentImg = null;
+        
+        function resize() {
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+        }
+        window.onresize = resize;
+        resize();
+
+        // Re-draws the current image at the new scale
+        function redrawImage() {
+            if (currentImg) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(currentImg, 0, 0, currentImg.width * imgScale.value, currentImg.height * imgScale.value);
+            }
+        }
+
+        imgScale.addEventListener('input', redrawImage);
+
+        function insertSnippet() {
+            const selector = document.getElementById('snippetSelector');
+            const editor = document.getElementById('codeEditor');
+            if (selector.value) {
+                editor.value += (editor.value ? '\n' : '') + selector.value;
+            }
+        }
+
+        let painting = false;
+        canvas.onmousedown = () => painting = true;
+        canvas.onmouseup = () => { painting = false; ctx.beginPath(); };
+        canvas.onmousemove = draw;
+
+        function draw(e) {
+            if (!painting) return;
+            ctx.lineWidth = sizeRange.value;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = colorPicker.value;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        document.getElementById('imgLoader').onchange = (e) => {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentImg = new Image();
+                currentImg.onload = () => {
+                    redrawImage();
+                }
+                currentImg.src = event.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        };
+
+        function runCode() {
+            const code = document.getElementById('codeEditor').value;
+            try { eval(code); } catch(err) { alert("Code Error: " + err.message); }
+        }
+
+        function clearCanvas() { 
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            currentImg = null;
+        }
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+    </script>
+</body>
+</html>
