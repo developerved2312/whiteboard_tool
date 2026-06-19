@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pro Whiteboard & Sketchpad</title>
+    <title>Whiteboard & Sketchpad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -28,16 +28,22 @@
     </header>
 
     <main id="whiteboard" class="tab-content active flex-1 relative flex-col">
-        <div class="bg-white p-2 border-b flex flex-wrap gap-4 items-center">
-            <input type="color" id="colorPicker" value="#4f46e5" class="w-10 h-10 border-0 cursor-pointer">
-            <input type="range" id="sizeRange" min="1" max="50" value="5" class="w-24">
-            <input type="file" id="imgLoader" accept="image/*" class="text-sm w-32">
-            <label class="text-xs">Img Size:</label>
-            <input type="range" id="imgScale" min="0.1" max="2" step="0.1" value="1" class="w-24">
-            <button onclick="clearCanvas()" class="bg-red-500 text-white px-3 py-1 rounded text-sm">Clear</button>
-            <button onclick="addSlide()" class="bg-green-600 text-white px-3 py-1 rounded text-sm">+ Add Slide</button>
-            <button onclick="downloadPDF()" class="bg-indigo-800 text-white px-3 py-1 rounded text-sm">Download PDF</button>
-            <span id="slideIndicator" class="text-xs font-bold px-2">P1</span>
+        <div class="bg-white p-2 border-b flex flex-wrap gap-3 items-center text-xs">
+            <input type="color" id="colorPicker" value="#4f46e5" class="w-8 h-8 cursor-pointer">
+            <input type="range" id="sizeRange" min="1" max="50" value="3" class="w-16">
+            
+            <label class="flex items-center gap-1 font-bold"><input type="checkbox" id="penCheckbox" checked> Stylus/Pen</label>
+            
+            <div class="flex gap-1 border-l pl-3">
+                <button onclick="setShape('square')" class="bg-gray-200 px-2 py-1 rounded">Square</button>
+                <button onclick="setShape('circle')" class="bg-gray-200 px-2 py-1 rounded">Circle</button>
+                <button onclick="setShape('triangle')" class="bg-gray-200 px-2 py-1 rounded">Triangle</button>
+            </div>
+
+            <button onclick="clearCanvas()" class="bg-red-500 text-white px-2 py-1 rounded">Clear</button>
+            <button onclick="addSlide()" class="bg-green-600 text-white px-2 py-1 rounded">+ Add</button>
+            <button onclick="downloadPDF()" class="bg-indigo-800 text-white px-2 py-1 rounded">PDF</button>
+            <span id="slideIndicator" class="font-bold border-l pl-2">P1</span>
         </div>
         <canvas id="canvas" class="flex-1 w-full h-full"></canvas>
     </main>
@@ -48,12 +54,6 @@
     </section>
 
     <section id="editor" class="tab-content flex-col p-4 bg-gray-100 flex-1">
-        <select id="snippetSelector" onchange="insertSnippet()" class="mb-2 p-2 rounded border">
-            <option value="">Select a snippet...</option>
-            <option value="ctx.fillStyle = 'blue'; ctx.fillRect(50, 50, 100, 100);">Draw Blue Square</option>
-            <option value="ctx.beginPath(); ctx.arc(200, 200, 50, 0, Math.PI * 2); ctx.fillStyle = 'red'; ctx.fill();">Draw Red Circle</option>
-            <option value="ctx.font = '30px Arial'; ctx.fillStyle = 'black'; ctx.fillText('Hello World', 50, 100);">Write Text</option>
-        </select>
         <textarea id="codeEditor" class="w-full h-48 p-4 font-mono text-sm border rounded mb-2" placeholder="// Type JS here..."></textarea>
         <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold">Run Code</button>
     </section>
@@ -86,8 +86,8 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const slides = [null]; 
-        let currentSlideIndex = 0;
-        let currentImg = null;
+        let currentSlideIndex = 0, painting = false, startX, startY;
+        let currentShape = null;
         
         function resize() {
             const temp = canvas.toDataURL();
@@ -99,6 +99,48 @@
         }
         window.onresize = resize;
         resize();
+
+        function setShape(shape) { 
+            currentShape = shape; 
+            document.getElementById('penCheckbox').checked = false;
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            painting = true;
+            startX = e.offsetX; startY = e.offsetY;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!painting || !document.getElementById('penCheckbox').checked) return;
+            ctx.lineWidth = document.getElementById('sizeRange').value;
+            ctx.strokeStyle = document.getElementById('colorPicker').value;
+            ctx.lineCap = 'round';
+            ctx.lineTo(e.offsetX, e.offsetY);
+            ctx.stroke();
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+            if (!painting) return;
+            const penActive = document.getElementById('penCheckbox').checked;
+            ctx.lineWidth = document.getElementById('sizeRange').value;
+            ctx.strokeStyle = document.getElementById('colorPicker').value;
+
+            if (!penActive && currentShape) {
+                if (currentShape === 'square') ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+                else if (currentShape === 'circle') ctx.arc(startX, startY, Math.abs(e.offsetX - startX), 0, Math.PI * 2);
+                else if (currentShape === 'triangle') {
+                    ctx.moveTo(startX, e.offsetY);
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.lineTo((startX + e.offsetX) / 2, startY);
+                    ctx.closePath();
+                }
+                ctx.stroke();
+                currentShape = null;
+            }
+            painting = false;
+        });
 
         function saveCurrentSlide() { slides[currentSlideIndex] = canvas.toDataURL(); }
         function loadSlide(index) {
@@ -126,38 +168,6 @@
             });
         }
 
-        let painting = false;
-        canvas.onmousedown = () => painting = true;
-        canvas.onmouseup = () => { painting = false; ctx.beginPath(); };
-        canvas.onmousemove = (e) => {
-            if (!painting) return;
-            ctx.lineWidth = document.getElementById('sizeRange').value;
-            ctx.strokeStyle = document.getElementById('colorPicker').value;
-            ctx.lineCap = 'round';
-            const rect = canvas.getBoundingClientRect();
-            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
-        };
-
-        function redrawImage() {
-            if (currentImg) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(currentImg, 0, 0, currentImg.width * document.getElementById('imgScale').value, currentImg.height * document.getElementById('imgScale').value);
-            }
-        }
-        document.getElementById('imgScale').addEventListener('input', redrawImage);
-        document.getElementById('imgLoader').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                currentImg = new Image();
-                currentImg.onload = redrawImage;
-                currentImg.src = event.target.result;
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        };
-
         function downloadPDF() {
             saveCurrentSlide();
             const { jsPDF } = window.jspdf;
@@ -170,8 +180,7 @@
         }
 
         function runCode() { try { eval(document.getElementById('codeEditor').value); } catch(err) { alert("Error: " + err.message); } }
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); currentImg = null; slides[currentSlideIndex] = null; }
-        function insertSnippet() { document.getElementById('codeEditor').value += document.getElementById('snippetSelector').value + '\n'; }
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); slides[currentSlideIndex] = null; }
         function switchTab(id) {
             if(id === 'gallery') renderGallery();
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
