@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Whiteboard & Sketchpad</title>
+    <title>Pro Whiteboard & Sketchpad</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -13,55 +13,146 @@
         .tab-content.active { display: flex; }
         .thumbnail { border: 2px solid #e5e7eb; cursor: pointer; transition: 0.2s; }
         .thumbnail:hover { border-color: #4f46e5; }
+        .drag-handle { cursor: move; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-indigo-700 text-white p-4 shadow-lg flex justify-between items-center">
+    <!-- Header Navigation -->
+    <header class="bg-indigo-700 text-white p-4 shadow-lg flex justify-between items-center z-20">
         <h1 class="text-xl font-bold">Whiteboard by Ved Vyas <a href="https://github.com/developerved2312"> (GitHub: developerved2312)</a></h1>
         <div class="flex gap-2">
-            <button onclick="switchTab('whiteboard')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Draw</button>
-            <button onclick="switchTab('editor')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">JS Editor</button>
-            <button onclick="switchTab('gallery')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Slide Overview</button>
-            <button onclick="switchTab('guide')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600">Guide</button>
+            <button onclick="switchTab('whiteboard')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600 font-medium">Draw</button>
+            <button onclick="switchTab('editor')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600 font-medium">JS Editor</button>
+            <button onclick="switchTab('gallery')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600 font-medium">Slide Overview</button>
+            <button onclick="switchTab('guide')" class="px-3 py-1 bg-indigo-500 rounded hover:bg-indigo-600 font-medium">Guide</button>
         </div>
     </header>
 
+    <!-- Whiteboard Tab -->
     <main id="whiteboard" class="tab-content active flex-1 relative flex-col">
-        <div class="bg-white p-2 border-b flex flex-wrap gap-3 items-center text-xs">
-            <input type="color" id="colorPicker" value="#4f46e5" class="w-8 h-8 cursor-pointer">
-            <input type="range" id="sizeRange" min="1" max="50" value="3" class="w-16">
+        <div class="bg-white p-2 border-b flex flex-wrap gap-3 items-center text-xs shadow-sm z-10">
+            <div class="flex items-center gap-1">
+                <span class="font-bold text-gray-700">Color:</span>
+                <input type="color" id="colorPicker" value="#4f46e5" class="w-8 h-8 cursor-pointer rounded-md">
+            </div>
             
-            <input type="file" id="imgLoader" accept="image/*" class="w-24">
-            <label class="flex items-center gap-1">Size:</label>
-            <input type="range" id="imgScale" min="0.1" max="2" step="0.1" value="1" class="w-16">
+            <div class="flex items-center gap-1">
+                <span class="font-bold text-gray-700">Size:</span>
+                <input type="range" id="sizeRange" min="1" max="50" value="3" class="w-16">
+            </div>
             
-            <label class="flex items-center gap-1 font-bold"><input type="checkbox" id="penCheckbox" checked> Stylus/Pen</label>
+            <div class="flex items-center gap-2 border-l pl-2">
+                <!-- Custom Stylized File Loader to guarantee easy tap & selection across devices -->
+                <label class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1.5 rounded cursor-pointer transition-colors text-xs font-semibold flex items-center justify-center gap-1 border border-gray-300">
+                    📁 Load Image
+                    <input type="file" id="imgLoader" accept="image/*" class="hidden">
+                </label>
+                <label class="text-gray-600 text-[10px]">Img Scale:</label>
+                <input type="range" id="imgScale" min="0.1" max="2" step="0.1" value="1" class="w-16">
+            </div>
             
-            <div class="flex gap-1 border-l pl-3">
-                <button onclick="setShape('square')" class="bg-gray-200 px-2 py-1 rounded">Square</button>
-                <button onclick="setShape('circle')" class="bg-gray-200 px-2 py-1 rounded">Circle</button>
-                <button onclick="setShape('triangle')" class="bg-gray-200 px-2 py-1 rounded">Triangle</button>
+            <div class="flex items-center gap-3 border-l pl-2">
+                <label class="flex items-center gap-1 font-bold text-indigo-700 cursor-pointer">
+                    <input type="checkbox" id="penCheckbox" checked onchange="togglePen()"> Stylus/Pen
+                </label>
+                <label class="flex items-center gap-1 font-bold text-teal-700 cursor-pointer">
+                    <input type="checkbox" id="textCheckbox" onchange="toggleText()"> Text Box
+                </label>
+            </div>
+            
+            <div class="flex gap-1 border-l pl-2 items-center">
+                <span class="font-bold text-gray-700 mr-1">Shapes:</span>
+                <button id="btn-square" onclick="setShape('square')" class="bg-gray-200 px-2 py-1 rounded hover:bg-indigo-100 font-semibold transition-colors">Square</button>
+                <button id="btn-circle" onclick="setShape('circle')" class="bg-gray-200 px-2 py-1 rounded hover:bg-indigo-100 font-semibold transition-colors">Circle</button>
+                <button id="btn-triangle" onclick="setShape('triangle')" class="bg-gray-200 px-2 py-1 rounded hover:bg-indigo-100 font-semibold transition-colors">Triangle</button>
             </div>
 
-            <button onclick="clearCanvas()" class="bg-red-500 text-white px-2 py-1 rounded">Clear</button>
-            <button onclick="addSlide()" class="bg-green-600 text-white px-2 py-1 rounded">+ Add</button>
-            <button onclick="downloadPDF()" class="bg-indigo-800 text-white px-2 py-1 rounded">PDF</button>
-            <span id="slideIndicator" class="font-bold border-l pl-2">P1</span>
+            <div class="flex gap-1 border-l pl-2 ml-auto">
+                <button onclick="clearCanvas()" class="bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600 font-bold">Clear</button>
+                <button onclick="addSlide()" class="bg-green-600 text-white px-2 py-1 rounded hover:bg-green-700 font-bold">+ Add</button>
+                <button onclick="downloadPDF()" class="bg-indigo-800 text-white px-2 py-1 rounded hover:bg-indigo-900 font-bold">PDF</button>
+                <span id="slideIndicator" class="font-bold text-indigo-700 px-2 self-center text-sm">P1</span>
+            </div>
         </div>
-        <canvas id="canvas" class="flex-1 w-full h-full"></canvas>
+        
+        <!-- Canvas wrapper to anchor absolute textboxes -->
+        <div id="canvasContainer" class="flex-1 w-full h-full relative overflow-hidden bg-gray-50">
+            <canvas id="canvas" class="absolute inset-0 w-full h-full"></canvas>
+        </div>
     </main>
 
+    <!-- Slide Overview / Gallery Tab -->
     <section id="gallery" class="tab-content flex-col p-4 bg-gray-100 flex-1 overflow-auto">
-        <h2 class="text-xl font-bold mb-4">Slide Overview</h2>
+        <h2 class="text-xl font-bold mb-4 text-gray-800">Slide Overview</h2>
         <div id="galleryGrid" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
     </section>
 
-    <section id="editor" class="tab-content flex-col p-4 bg-gray-100 flex-1">
-        <textarea id="codeEditor" class="w-full h-48 p-4 font-mono text-sm border rounded mb-2" placeholder="// Type JS here..."></textarea>
-        <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold">Run Code</button>
+    <!-- JS Editor Tab -->
+    <section id="editor" class="tab-content flex-row bg-gray-100 flex-1 overflow-hidden">
+        <!-- Sidebar Palette for JS Elements -->
+        <div class="w-64 bg-gray-200 p-4 border-r flex flex-col gap-3 overflow-y-auto">
+            <h3 class="font-bold text-gray-700 text-sm uppercase tracking-wider mb-2">Code Toolbox</h3>
+            
+            <div>
+                <span class="text-xs font-semibold text-gray-500 block mb-1">Variables</span>
+                <button onclick="insertTemplate('var')" class="w-full text-left bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-2 rounded text-xs font-mono hover:bg-yellow-200 transition-colors">
+                    var x = 100;
+                </button>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-gray-500 block mb-1">Console Logs</span>
+                <button onclick="insertTemplate('log')" class="w-full text-left bg-blue-100 border-l-4 border-blue-500 text-blue-800 p-2 rounded text-xs font-mono hover:bg-blue-200 transition-colors">
+                    console.log(x);
+                </button>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-gray-500 block mb-1">Canvas Style</span>
+                <button onclick="insertTemplate('fill')" class="w-full text-left bg-purple-100 border-l-4 border-purple-500 text-purple-800 p-2 rounded text-xs font-mono hover:bg-purple-200 transition-colors">
+                    ctx.fillStyle = 'red';
+                </button>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-gray-500 block mb-1">Draw Rect</span>
+                <button onclick="insertTemplate('rect')" class="w-full text-left bg-green-100 border-l-4 border-green-500 text-green-800 p-2 rounded text-xs font-mono hover:bg-green-200 transition-colors">
+                    ctx.fillRect(50, 50, 150, 100);
+                </button>
+            </div>
+
+            <div>
+                <span class="text-xs font-semibold text-gray-500 block mb-1">Draw Circle</span>
+                <button onclick="insertTemplate('circle')" class="w-full text-left bg-pink-100 border-l-4 border-pink-500 text-pink-800 p-2 rounded text-xs font-mono hover:bg-pink-200 transition-colors">
+                    ctx.arc(200, 200, 50, 0, Math.PI * 2);
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Editor Area -->
+        <div class="flex-1 p-4 flex flex-col gap-2">
+            <!-- Dropdown Syntax Menu featuring color guides -->
+            <select id="jsSnippet" onchange="insertCode()" class="mb-2 p-2 rounded border font-mono text-xs bg-white text-indigo-900 border-indigo-200 shadow-sm outline-none">
+                <option value="" class="font-bold">-- Code Snippets (Select to insert) --</option>
+                <option value="var x = 100;" class="text-yellow-600">var (Variable declaration)</option>
+                <option value="let y = 150;" class="text-orange-600">let (Block-scoped variable)</option>
+                <option value="const speed = 5;" class="text-red-600">const (Constant declaration)</option>
+                <option value="console.log(x);" class="text-blue-600">console.log() (Debug logger)</option>
+                <option value="if (x > 50) {\n    \n}" class="text-purple-600">if conditional</option>
+                <option value="for (let i = 0; i < 10; i++) {\n    \n}" class="text-teal-600">for loop</option>
+                <option value="function drawShape() {\n    \n}" class="text-green-600">function definition</option>
+                <option value="ctx.fillStyle = 'red';" class="text-pink-600">ctx.fillStyle (Fill color)</option>
+                <option value="ctx.fillRect(100, 100, 150, 100);" class="text-indigo-600">ctx.fillRect() (Rectangle)</option>
+                <option value="ctx.beginPath();\nctx.arc(200, 200, 50, 0, Math.PI * 2);\nctx.stroke();" class="text-emerald-600">ctx.arc() (Circle)</option>
+            </select>
+
+            <textarea id="codeEditor" class="w-full flex-1 p-4 font-mono text-sm border rounded bg-gray-900 text-green-400 outline-none focus:ring-2 focus:ring-indigo-500 shadow-inner" placeholder="// Inject canvas commands using the toolbox or type plain javascript here..."></textarea>
+            <button onclick="runCode()" class="bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 shadow-md transition-all">Run Code on Canvas</button>
+        </div>
     </section>
 
+    <!-- Guide Tab -->
     <section id="guide" class="tab-content p-6 overflow-auto bg-gray-50 flex-1 flex-col">
         <h2 class="text-2xl font-bold mb-4 text-gray-800">Processing.js Syntax Guide</h2>
         <div class="bg-gray-800 text-green-400 p-6 rounded shadow-inner font-mono text-sm leading-relaxed overflow-x-auto">
@@ -90,9 +181,14 @@
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const slides = [null]; 
-        let currentSlideIndex = 0, painting = false, startX, startY;
+        let currentSlideIndex = 0;
+        let painting = false;
+        let startX = 0;
+        let startY = 0;
         let currentShape = null;
         let currentImg = null;
+        let dragStartImage = null; // Stores canvas state for shape preview drawing
+        let activeTab = 'whiteboard';
         
         function resize() {
             const temp = canvas.toDataURL();
@@ -105,67 +201,13 @@
         window.onresize = resize;
         resize();
 
-        function redrawImage() {
-            if (currentImg) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(currentImg, 0, 0, currentImg.width * document.getElementById('imgScale').value, currentImg.height * document.getElementById('imgScale').value);
-            }
-        }
-        document.getElementById('imgScale').addEventListener('input', redrawImage);
-        document.getElementById('imgLoader').onchange = (e) => {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                currentImg = new Image();
-                currentImg.onload = redrawImage;
-                currentImg.src = event.target.result;
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        };
-
-        function setShape(shape) { 
-            currentShape = shape; 
-            document.getElementById('penCheckbox').checked = false;
+        // Safe slide restoration
+        function saveCurrentSlide() { 
+            slides[currentSlideIndex] = canvas.toDataURL(); 
         }
 
-        canvas.addEventListener('pointerdown', (e) => {
-            painting = true;
-            startX = e.offsetX; startY = e.offsetY;
-            ctx.beginPath();
-            ctx.moveTo(startX, startY);
-        });
-
-        canvas.addEventListener('pointermove', (e) => {
-            if (!painting || !document.getElementById('penCheckbox').checked) return;
-            ctx.lineWidth = document.getElementById('sizeRange').value;
-            ctx.strokeStyle = document.getElementById('colorPicker').value;
-            ctx.lineCap = 'round';
-            ctx.lineTo(e.offsetX, e.offsetY);
-            ctx.stroke();
-        });
-
-        canvas.addEventListener('pointerup', (e) => {
-            if (!painting) return;
-            const penActive = document.getElementById('penCheckbox').checked;
-            ctx.lineWidth = document.getElementById('sizeRange').value;
-            ctx.strokeStyle = document.getElementById('colorPicker').value;
-
-            if (!penActive && currentShape) {
-                if (currentShape === 'square') ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
-                else if (currentShape === 'circle') ctx.arc(startX, startY, Math.abs(e.offsetX - startX), 0, Math.PI * 2);
-                else if (currentShape === 'triangle') {
-                    ctx.moveTo(startX, e.offsetY);
-                    ctx.lineTo(e.offsetX, e.offsetY);
-                    ctx.lineTo((startX + e.offsetX) / 2, startY);
-                    ctx.closePath();
-                }
-                ctx.stroke();
-                currentShape = null;
-            }
-            painting = false;
-        });
-
-        function saveCurrentSlide() { slides[currentSlideIndex] = canvas.toDataURL(); }
         function loadSlide(index) {
+            bakeAllTextBoxes();
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             currentImg = null;
             if (slides[index]) {
@@ -176,22 +218,264 @@
             currentSlideIndex = index;
             document.getElementById('slideIndicator').innerText = `P${index + 1}`;
         }
-        function addSlide() { saveCurrentSlide(); slides.push(null); loadSlide(slides.length - 1); }
 
+        function addSlide() { 
+            bakeAllTextBoxes();
+            saveCurrentSlide(); 
+            slides.push(null); 
+            loadSlide(slides.length - 1); 
+        }
+
+        // Pen vs Text exclusivity toggles
+        function togglePen() {
+            if (document.getElementById('penCheckbox').checked) {
+                document.getElementById('textCheckbox').checked = false;
+                currentShape = null;
+                clearShapeActiveStates();
+            }
+        }
+
+        function toggleText() {
+            if (document.getElementById('textCheckbox').checked) {
+                document.getElementById('penCheckbox').checked = false;
+                currentShape = null;
+                clearShapeActiveStates();
+            }
+        }
+
+        function setShape(shape) {
+            currentShape = shape;
+            document.getElementById('penCheckbox').checked = false;
+            document.getElementById('textCheckbox').checked = false;
+            
+            clearShapeActiveStates();
+            const btn = document.getElementById('btn-' + shape);
+            if (btn) {
+                btn.classList.add('bg-indigo-200', 'border-indigo-500', 'text-indigo-900');
+            }
+        }
+
+        function clearShapeActiveStates() {
+            ['square', 'circle', 'triangle'].forEach(sh => {
+                const btn = document.getElementById('btn-' + sh);
+                if (btn) btn.classList.remove('bg-indigo-200', 'border-indigo-500', 'text-indigo-900');
+            });
+        }
+
+        // Draggable Textbox Spawner (PPT Style)
+        function createTextBox(x, y) {
+            const container = document.getElementById('canvasContainer');
+            const box = document.createElement('div');
+            box.className = "absolute bg-white border-2 border-dashed border-indigo-500 rounded p-1 flex flex-col shadow-lg select-none";
+            box.style.left = x + "px";
+            box.style.top = y + "px";
+            box.style.width = "220px";
+            box.style.height = "130px";
+            box.style.zIndex = "100";
+
+            // Header for drag operation and action buttons
+            const header = document.createElement('div');
+            header.className = "bg-indigo-100 text-[10px] p-1 flex justify-between items-center cursor-move select-none rounded-t font-semibold drag-handle";
+            header.innerHTML = `
+                <span class="flex-1 mr-2 text-indigo-900">Drag to Position</span>
+                <div class="flex gap-1">
+                    <button class="bg-green-600 text-white px-2 rounded hover:bg-green-700 font-bold" title="Bake to Canvas" onclick="bakeTextBox(this.closest('.absolute'))">✓</button>
+                    <button class="bg-red-500 text-white px-2 rounded hover:bg-red-600 font-bold" title="Delete" onclick="this.closest('.absolute').remove()">✗</button>
+                </div>
+            `;
+            
+            const textarea = document.createElement('textarea');
+            textarea.className = "flex-1 w-full p-1 text-sm bg-transparent border-0 resize-none outline-none focus:ring-0";
+            textarea.style.color = document.getElementById('colorPicker').value;
+            textarea.style.fontSize = Math.max(14, document.getElementById('sizeRange').value * 2) + "px";
+            textarea.placeholder = "Click and type text...";
+
+            box.appendChild(header);
+            box.appendChild(textarea);
+            container.appendChild(box);
+
+            // Drag Functionality using Pointer Events (Mouse, touch, stylus)
+            let isDragging = false;
+            let startOffsetX = 0;
+            let startOffsetY = 0;
+
+            header.addEventListener('pointerdown', (e) => {
+                // Ensure clicking buttons doesn't trigger parent drag state
+                if (e.target.closest('button')) {
+                    return;
+                }
+                isDragging = true;
+                header.setPointerCapture(e.pointerId);
+                startOffsetX = e.clientX - box.offsetLeft;
+                startOffsetY = e.clientY - box.offsetTop;
+                e.stopPropagation();
+            });
+
+            header.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const containerRect = container.getBoundingClientRect();
+                let left = e.clientX - startOffsetX;
+                let top = e.clientY - startOffsetY;
+                
+                left = Math.max(0, Math.min(left, containerRect.width - box.offsetWidth));
+                top = Math.max(0, Math.min(top, containerRect.height - box.offsetHeight));
+                
+                box.style.left = left + "px";
+                box.style.top = top + "px";
+                e.stopPropagation();
+            });
+
+            header.addEventListener('pointerup', (e) => {
+                isDragging = false;
+                header.releasePointerCapture(e.pointerId);
+                e.stopPropagation();
+            });
+
+            setTimeout(() => textarea.focus(), 50);
+        }
+
+        // Merges textbox DOM value down to static Canvas context
+        function bakeTextBox(boxEl) {
+            const textarea = boxEl.querySelector('textarea');
+            const text = textarea.value.trim();
+            if (text) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const boxRect = boxEl.getBoundingClientRect();
+                
+                // Adjust coordinates relative to Canvas offset
+                const x = boxRect.left - canvasRect.left + 6;
+                const y = boxRect.top - canvasRect.top + 28; // 28px accounts for drag handle bar height
+
+                ctx.fillStyle = document.getElementById('colorPicker').value;
+                const fontSize = Math.max(14, document.getElementById('sizeRange').value * 2);
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.textBaseline = 'top';
+                
+                const lines = text.split('\n');
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, x, y + (index * (fontSize + 4)));
+                });
+                
+                saveCurrentSlide();
+            }
+            boxEl.remove();
+        }
+
+        function bakeAllTextBoxes() {
+            const boxes = document.querySelectorAll('#canvasContainer > div');
+            boxes.forEach(box => bakeTextBox(box));
+        }
+
+        // --- Pointer Event Listeners ---
+        canvas.addEventListener('pointerdown', (e) => {
+            // Check if text box tool is selected
+            if (document.getElementById('textCheckbox').checked) {
+                createTextBox(e.offsetX, e.offsetY);
+                return;
+            }
+
+            painting = true;
+            startX = e.offsetX; 
+            startY = e.offsetY;
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+
+            // Save the exact canvas snapshot for interactive shape drawing
+            if (currentShape) {
+                dragStartImage = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+            if (!painting) return;
+
+            const isPen = document.getElementById('penCheckbox').checked;
+            ctx.lineWidth = document.getElementById('sizeRange').value;
+            ctx.strokeStyle = document.getElementById('colorPicker').value;
+            ctx.lineCap = 'round';
+
+            if (isPen) {
+                ctx.lineTo(e.offsetX, e.offsetY);
+                ctx.stroke();
+            } else if (currentShape && dragStartImage) {
+                // Restore original pixel canvas layout to perform smooth shape drag overlays
+                ctx.putImageData(dragStartImage, 0, 0);
+                ctx.beginPath();
+
+                if (currentShape === 'square') {
+                    ctx.strokeRect(startX, startY, e.offsetX - startX, e.offsetY - startY);
+                } else if (currentShape === 'circle') {
+                    ctx.arc(startX, startY, Math.abs(e.offsetX - startX), 0, Math.PI * 2);
+                } else if (currentShape === 'triangle') {
+                    ctx.moveTo(startX, e.offsetY);
+                    ctx.lineTo(e.offsetX, e.offsetY);
+                    ctx.lineTo((startX + e.offsetX) / 2, startY);
+                    ctx.closePath();
+                }
+                ctx.stroke();
+            }
+        });
+
+        canvas.addEventListener('pointerup', () => {
+            if (painting) {
+                saveCurrentSlide();
+            }
+            painting = false;
+            dragStartImage = null;
+        });
+
+        canvas.addEventListener('pointerleave', () => {
+            if (painting) {
+                saveCurrentSlide();
+            }
+            painting = false;
+            dragStartImage = null;
+        });
+
+        // --- Core Image Handling & Sliders ---
+        function redrawImage() {
+            if (currentImg) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(currentImg, 0, 0, currentImg.width * document.getElementById('imgScale').value, currentImg.height * document.getElementById('imgScale').value);
+                saveCurrentSlide();
+            }
+        }
+        document.getElementById('imgScale').addEventListener('input', redrawImage);
+        document.getElementById('imgLoader').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                currentImg = new Image();
+                currentImg.onload = redrawImage;
+                currentImg.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        };
+
+        // --- Gallery/Slide Grid Overview ---
         function renderGallery() {
+            bakeAllTextBoxes();
             saveCurrentSlide();
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
             slides.forEach((data, i) => {
                 const div = document.createElement('div');
-                div.className = 'thumbnail p-1 bg-white';
-                div.innerHTML = `<img src="${data || ''}" class="w-full h-auto" onerror="this.style.display='none'">`;
+                div.className = 'thumbnail p-1 bg-white rounded shadow-sm flex flex-col items-center';
+                div.innerHTML = `
+                    <div class="w-full bg-gray-50 flex items-center justify-center border aspect-video overflow-hidden">
+                        <img src="${data || ''}" class="max-w-full max-h-full object-contain" onerror="this.style.display='none'">
+                    </div>
+                    <span class="text-[11px] font-bold text-gray-500 mt-1">Page ${i+1}</span>
+                `;
                 div.onclick = () => { loadSlide(i); switchTab('whiteboard'); };
                 grid.appendChild(div);
             });
         }
 
+        // --- PDF Generation across multiple slides ---
         function downloadPDF() {
+            bakeAllTextBoxes();
             saveCurrentSlide();
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'px', [canvas.width, canvas.height]);
@@ -202,12 +486,64 @@
             doc.save('presentation.pdf');
         }
 
-        function runCode() { try { eval(document.getElementById('codeEditor').value); } catch(err) { alert("Error: " + err.message); } }
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); slides[currentSlideIndex] = null; currentImg = null; }
+        // --- Tab Management ---
         function switchTab(id) {
-            if(id === 'gallery') renderGallery();
+            // Save state of the tab we are LEAVING to protect drawings & code adjustments
+            if (activeTab === 'whiteboard' || activeTab === 'editor') {
+                bakeAllTextBoxes();
+                saveCurrentSlide();
+            }
+            
+            const oldTab = activeTab;
+            activeTab = id;
+            
+            if (id === 'gallery') renderGallery();
+            
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
             document.getElementById(id).classList.add('active');
+
+            // Only trigger loadSlide if switching directly to whiteboard from another tab (prevent double asynchronous overwrite)
+            if (id === 'whiteboard' && oldTab !== 'whiteboard' && oldTab !== 'gallery') {
+                loadSlide(currentSlideIndex);
+            }
+        }
+
+        // --- JS Code Editor & Preset Injectors ---
+        function insertTemplate(type) {
+            const editor = document.getElementById('codeEditor');
+            let code = "";
+            if (type === 'var') code = "var x = 100;\nvar y = 150;\n";
+            else if (type === 'log') code = "console.log('Active coordinates: ' + x + ', ' + y);\n";
+            else if (type === 'fill') code = "ctx.fillStyle = '" + document.getElementById('colorPicker').value + "';\n";
+            else if (type === 'rect') code = "ctx.fillRect(100, 100, 150, 100);\n";
+            else if (type === 'circle') code = "ctx.beginPath();\nctx.arc(200, 200, 50, 0, Math.PI * 2);\nctx.fill();\n";
+            
+            editor.value += code;
+        }
+
+        function insertCode() {
+            const selector = document.getElementById('jsSnippet');
+            const editor = document.getElementById('codeEditor');
+            if (selector.value) {
+                editor.value += selector.value + "\n";
+                selector.value = ""; // Clear selection dropdown immediately
+            }
+        }
+
+        function runCode() { 
+            try { 
+                eval(document.getElementById('codeEditor').value); 
+                saveCurrentSlide();
+                alert("Executed successfully!");
+            } catch(err) { 
+                alert("JS Compilation Error: " + err.message); 
+            } 
+        }
+
+        function clearCanvas() { 
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            slides[currentSlideIndex] = null; 
+            currentImg = null; 
         }
     </script>
 </body>
